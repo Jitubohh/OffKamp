@@ -1,110 +1,135 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { MapPin, Pencil, AlertTriangle, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
+import { parseFilters, buildQuery } from "@/lib/search-params";
+import { fetchListings } from "@/lib/listings";
+import { ListingCard } from "@/components/browse/listing-card";
+import { FilterSheet } from "@/components/browse/filter-sheet";
 import { Logo } from "@/components/brand/logo";
-import { logout } from "@/app/(auth)/actions";
-import { isPrecise } from "@/lib/geo";
 
-export default async function DashboardPage() {
+export default async function BrowsePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const filters = parseFilters(sp);
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
+  const { data: profile } = user
+    ? await supabase.from("profiles").select("role").eq("id", user.id).single()
+    : { data: null };
 
-  const { data: profile } = await supabase
-    .from("profiles").select("role, display_name").eq("id", user.id).single();
-  if (profile?.role !== "lister") redirect("/");
+  const { school, listings } = await fetchListings(filters);
+  const publicBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/room-photos`;
 
-  const { data: property } = await supabase
-    .from("properties")
-    .select("*, property_schools(distance_km, schools(name))")
-    .eq("owner_id", user.id)
-    .maybeSingle();
+  const schoolHref = (slug: string) =>
+    `/?${buildQuery({ ...filters, school: slug })}`;
 
-  const needsLocation = property !== null && property.lat === null;
+  const sortHref = (sort: typeof filters.sort) =>
+    `/?${buildQuery({ ...filters, sort })}`;
 
   return (
     <div className="min-h-dvh bg-white">
-      <header className="flex items-center justify-between border-b border-line px-5 py-4 sm:px-8">
-        <Link href="/"><Logo /></Link>
-        <form action={logout}>
-          <button className="text-sm font-semibold text-muted transition hover:text-ink">Log out</button>
-        </form>
+      <header className="sticky top-0 z-30 border-b border-line bg-white/85 backdrop-blur">
+        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
+          <Link href="/"><Logo /></Link>
+
+          <nav className="flex items-center gap-3">
+            {profile?.role === "lister" ? (
+              <Link href="/dashboard" className="text-sm font-semibold text-ink transition hover:text-brand-ink">
+                Dashboard
+              </Link>
+            ) : user ? null : (
+              <>
+                <Link href="/login" className="hidden text-sm font-semibold text-muted transition hover:text-ink sm:block">
+                  Log in
+                </Link>
+                <Link
+                  href="/signup"
+                  className="inline-flex h-10 items-center rounded-xl bg-brand-ink px-4 text-sm font-semibold text-white transition hover:brightness-110"
+                >
+                  Sign up
+                </Link>
+              </>
+            )}
+          </nav>
+        </div>
+
+        {/* school toggle */}
+        <div className="mx-auto max-w-6xl px-5 pb-4 sm:px-8">
+          <div className="inline-grid grid-cols-2 gap-1 rounded-2xl bg-surface p-1">
+            {[
+              { slug: "nile", label: "Nile" },
+              { slug: "baze", label: "Baze" },
+            ].map((s) => (
+              <Link
+                key={s.slug}
+                href={schoolHref(s.slug)}
+                scroll={false}
+                className={`rounded-xl px-6 py-2 text-center text-sm font-semibold transition ${
+                  filters.school === s.slug
+                    ? "bg-white text-brand-ink shadow-sm"
+                    : "text-muted hover:text-ink"
+                }`}
+              >
+                {s.label}
+              </Link>
+            ))}
+          </div>
+        </div>
       </header>
 
-      <main className="mx-auto w-full max-w-3xl px-5 pb-24 pt-8 sm:px-8">
+      <main className="mx-auto max-w-6xl px-5 pb-24 pt-8 sm:px-8">
         <h1 className="text-[2rem] font-extrabold leading-tight tracking-tight text-ink">
-          {profile.display_name ? `Hi, ${profile.display_name.split(" ")[0]}` : "Your dashboard"}
+          Off-campus places near {school?.name.split(" ")[0] ?? "campus"}
         </h1>
+        <p className="mt-2 text-[15px] text-muted">
+          {listings.length} {listings.length === 1 ? "place" : "places"} to look at.
+        </p>
 
-        {!property ? (
-          <div className="mt-8 rounded-card border border-dashed border-line bg-surface p-8 text-center">
-            <p className="text-[15px] text-muted">You haven't listed a property yet.</p>
+        <div className="mt-6 flex flex-wrap items-center gap-3">
+          <FilterSheet filters={filters} resultCount={listings.length} />
+
+          <div className="flex gap-1 rounded-2xl bg-surface p-1">
+            {([
+              ["distance", "Closest"],
+              ["price_asc", "Cheapest"],
+              ["price_desc", "Priciest"],
+            ] as const).map(([value, label]) => (
+              <Link
+                key={value}
+                href={sortHref(value)}
+                scroll={false}
+                className={`rounded-xl px-3.5 py-2 text-sm font-semibold transition ${
+                  filters.sort === value ? "bg-white text-brand-ink shadow-sm" : "text-muted hover:text-ink"
+                }`}
+              >
+                {label}
+              </Link>
+            ))}
+          </div>
+        </div>
+
+        {listings.length === 0 ? (
+          <div className="mt-12 rounded-card border border-dashed border-line bg-surface p-12 text-center">
+            <p className="font-semibold text-ink">Nothing matches those filters.</p>
+            <p className="mt-1 text-sm text-muted">Try widening your price range or distance.</p>
             <Link
-              href="/dashboard/property"
-              className="mt-5 inline-flex h-12 items-center gap-2 rounded-2xl bg-brand-ink px-6 text-[15px] font-semibold text-white transition hover:brightness-110"
+              href="/"
+              className="mt-5 inline-flex h-11 items-center rounded-2xl bg-brand-ink px-5 text-sm font-semibold text-white transition hover:brightness-110"
             >
-              <Plus size={18} /> List your property
+              Clear filters
             </Link>
           </div>
         ) : (
-          <>
-            {needsLocation && (
-              <div className="mt-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-                <AlertTriangle size={20} className="mt-0.5 shrink-0 text-amber-600" />
-                <div>
-                  <p className="text-sm font-semibold text-amber-900">
-                    Add your location to appear in distance searches
-                  </p>
-                  <p className="mt-1 text-sm text-amber-700">
-                    Students filter by how far a place is from campus. Without a pin, yours stays hidden from those results.
-                  </p>
-                  <Link
-                    href="/dashboard/property"
-                    className="mt-3 inline-flex h-10 items-center rounded-xl bg-amber-600 px-4 text-sm font-semibold text-white transition hover:brightness-110"
-                  >
-                    Set location
-                  </Link>
-                </div>
-              </div>
-            )}
-
-            <section className="mt-6 rounded-card border border-line p-6">
-              <div className="flex items-start justify-between gap-4">
-                <div>
-                  <h2 className="text-xl font-bold text-ink">{property.name}</h2>
-                  <p className="mt-1 text-sm text-muted">{property.location}</p>
-                </div>
-                <Link
-                  href="/dashboard/property"
-                  className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-line px-4 text-sm font-semibold text-ink transition hover:bg-surface"
-                >
-                  <Pencil size={15} /> Edit
-                </Link>
-              </div>
-
-              <ul className="mt-4 space-y-1.5">
-                {property.property_schools.map((ps, i) => (
-                  <li key={i} className="flex items-center gap-2 text-sm text-ink">
-                    <MapPin size={14} className="text-brand-ink" />
-                    {ps.distance_km !== null
-                      ? `${ps.distance_km} km from ${ps.schools?.name}`
-                      : `Serves ${ps.schools?.name}`}
-                  </li>
-                ))}
-              </ul>
-
-              {property.distance_note && (
-                <p className="mt-3 text-sm italic text-muted">"{property.distance_note}"</p>
-              )}
-
-              {isPrecise(property.location_accuracy_m) && (
-                <p className="mt-3 inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                  Precise location · directions enabled
-                </p>
-              )}
-            </section>
-          </>
+          <ul className="mt-8 grid gap-x-6 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
+            {listings.map((l) => (
+              <li key={l.id}>
+                <ListingCard listing={l} publicBase={publicBase} schoolName={school!.name} />
+              </li>
+            ))}
+          </ul>
         )}
       </main>
     </div>
