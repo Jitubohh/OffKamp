@@ -1,6 +1,7 @@
 import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { RoomForm } from "@/components/dashboard/room-form";
+import { BackLink } from "@/components/ui/back-link";
 
 export default async function NewRoomPage() {
   const supabase = await createClient();
@@ -18,9 +19,16 @@ export default async function NewRoomPage() {
   const showTri = property.property_schools.some((ps) => ps.schools?.has_tri_semester);
 
   return (
-    <main className="mx-auto min-h-dvh w-full max-w-2xl px-5 pb-24 pt-10 sm:px-8">
-      <h1 className="text-[2rem] font-extrabold leading-tight tracking-tight text-ink">Add a room</h1>
-      <p className="mt-2 text-[15px] text-muted">Each room size is priced separately.</p>
+    <main className="mx-auto w-full max-w-2xl px-5 pb-24 pt-8 sm:px-8">
+      <BackLink href="/dashboard" label="Dashboard" />
+
+      <h1 className="mt-4 text-[2rem] font-extrabold leading-tight tracking-tight text-ink">
+        Add a room
+      </h1>
+      <p className="mt-2 text-[15px] text-muted">
+        Each room size is priced separately. You&rsquo;ll add photos after saving.
+      </p>
+
       <div className="mt-8">
         <RoomForm room={null} amenities={{}} showTri={showTri} />
       </div>
