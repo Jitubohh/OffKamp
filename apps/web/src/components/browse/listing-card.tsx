@@ -7,15 +7,17 @@ import { MapPin, Users, ImageOff, ChevronLeft, ChevronRight } from "lucide-react
 import { formatNaira } from "@/lib/pricing";
 import { FACILITIES } from "@/lib/facilities";
 import type { Listing } from "@/lib/listings";
+import { BookmarkButton } from "./bookmark-button";
 
 const GENDER_LABEL = { male: "Male only", female: "Female only", mixed: "Mixed" } as const;
 
 export function ListingCard({
-  listing, publicBase, schoolName,
+  listing, publicBase, schoolName, saved = false,
 }: {
   listing: Listing;
   publicBase: string;
   schoolName: string;
+  saved?: boolean;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
   const [index, setIndex] = useState(0);
@@ -74,6 +76,10 @@ export function ListingCard({
         <span className="pointer-events-none absolute left-3 top-3 z-10 rounded-full bg-white/90 px-2.5 py-1 text-[11px] font-bold text-ink backdrop-blur">
           {GENDER_LABEL[listing.gender]}
         </span>
+
+        <div className="absolute right-3 top-3 z-20">
+          <BookmarkButton propertyId={listing.id} saved={saved} />
+        </div>
 
         {photos.length > 1 && (
           <>

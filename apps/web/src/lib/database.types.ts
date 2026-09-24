@@ -71,6 +71,7 @@ export type Database = {
       properties: {
         Row: {
           address: string | null
+          avg_rating: number | null
           contact_phone: string | null
           contact_whatsapp: string
           created_at: string
@@ -84,11 +85,13 @@ export type Database = {
           location_accuracy_m: number | null
           location_set_at: string | null
           name: string
-          owner_id: string
+          owner_id: string | null
+          review_count: number
           updated_at: string
         }
         Insert: {
           address?: string | null
+          avg_rating?: number | null
           contact_phone?: string | null
           contact_whatsapp: string
           created_at?: string
@@ -102,11 +105,13 @@ export type Database = {
           location_accuracy_m?: number | null
           location_set_at?: string | null
           name: string
-          owner_id: string
+          owner_id?: string | null
+          review_count?: number
           updated_at?: string
         }
         Update: {
           address?: string | null
+          avg_rating?: number | null
           contact_phone?: string | null
           contact_whatsapp?: string
           created_at?: string
@@ -120,14 +125,15 @@ export type Database = {
           location_accuracy_m?: number | null
           location_set_at?: string | null
           name?: string
-          owner_id?: string
+          owner_id?: string | null
+          review_count?: number
           updated_at?: string
         }
         Relationships: [
           {
             foreignKeyName: "properties_owner_id_fkey"
             columns: ["owner_id"]
-            isOneToOne: true
+            isOneToOne: false
             referencedRelation: "profiles"
             referencedColumns: ["id"]
           },

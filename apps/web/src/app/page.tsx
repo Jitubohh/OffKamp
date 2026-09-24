@@ -5,6 +5,8 @@ import { fetchListings } from "@/lib/listings";
 import { ListingCard } from "@/components/browse/listing-card";
 import { FilterSheet } from "@/components/browse/filter-sheet";
 import { Logo } from "@/components/brand/logo";
+import { Heart } from "lucide-react";
+import { logout } from "@/app/(auth)/actions";
 
 export default async function BrowsePage({
   searchParams,
@@ -29,31 +31,61 @@ export default async function BrowsePage({
   const sortHref = (sort: typeof filters.sort) =>
     `/?${buildQuery({ ...filters, sort })}`;
 
+  const { data: bookmarks } = user
+  ? await supabase.from("bookmarks").select("property_id").eq("student_id", user.id)
+  : { data: null };
+
+  const savedIds = new Set((bookmarks ?? []).map((b) => b.property_id));
+
   return (
     <div className="min-h-dvh bg-white">
       <header className="sticky top-0 z-30 border-b border-line bg-white/85 backdrop-blur">
         <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
           <Link href="/"><Logo /></Link>
 
-          <nav className="flex items-center gap-3">
-            {profile?.role === "lister" ? (
-              <Link href="/dashboard" className="text-sm font-semibold text-ink transition hover:text-brand-ink">
-                Dashboard
-              </Link>
-            ) : user ? null : (
-              <>
-                <Link href="/login" className="hidden text-sm font-semibold text-muted transition hover:text-ink sm:block">
-                  Log in
-                </Link>
-                <Link
-                  href="/signup"
-                  className="inline-flex h-10 items-center rounded-xl bg-brand-ink px-4 text-sm font-semibold text-white transition hover:brightness-110"
-                >
-                  Sign up
-                </Link>
-              </>
-            )}
-          </nav>
+          <nav className="flex items-center gap-2">
+  {user ? (
+    <>
+      <Link
+        href="/saved"
+        className="inline-flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-muted transition hover:bg-surface hover:text-ink"
+      >
+        <Heart size={16} />
+        <span className="hidden sm:inline">Saved</span>
+      </Link>
+
+      {profile?.role === "lister" ? (
+        <Link
+          href="/dashboard"
+          className="inline-flex h-10 items-center rounded-xl px-3 text-sm font-semibold text-muted transition hover:bg-surface hover:text-ink"
+        >
+          Dashboard
+        </Link>
+      ) : null}
+
+      <form action={logout}>
+        <button className="inline-flex h-10 items-center rounded-xl px-3 text-sm font-semibold text-muted transition hover:bg-surface hover:text-ink">
+          Log out
+        </button>
+      </form>
+    </>
+  ) : (
+    <>
+      <Link
+        href="/login"
+        className="inline-flex h-10 items-center rounded-xl px-3 text-sm font-semibold text-muted transition hover:bg-surface hover:text-ink"
+      >
+        Log in
+      </Link>
+      <Link
+        href="/signup"
+        className="inline-flex h-10 items-center rounded-xl bg-brand-ink px-4 text-sm font-semibold text-white transition hover:brightness-110"
+      >
+        Sign up
+      </Link>
+    </>
+  )}
+</nav>
         </div>
 
         {/* school toggle */}
@@ -126,7 +158,7 @@ export default async function BrowsePage({
           <ul className="mt-8 grid gap-x-6 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
             {listings.map((l) => (
               <li key={l.id}>
-                <ListingCard listing={l} publicBase={publicBase} schoolName={school!.name} />
+                <ListingCard listing={l} publicBase={publicBase} schoolName={school!.name} saved={savedIds.has(l.id)}/>
               </li>
             ))}
           </ul>

@@ -1,14 +1,18 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
 import { MapPin, ArrowLeft } from "lucide-react";
+import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { Gallery } from "@/components/property/gallery";
 import { RoomCard, type RoomForDisplay } from "@/components/property/room-card";
 import { ContactPanel } from "@/components/property/contact-panel";
+import { BookmarkButton } from "@/components/browse/bookmark-button";
+import { Stars } from "@/components/reviews/stars";
+import { ReviewForm } from "@/components/reviews/review-form";
+import { ReviewList } from "@/components/reviews/review-list";
 import { FACILITIES } from "@/lib/facilities";
 import { PERIODS, type PeriodKey } from "@/lib/pricing";
 import { directionsUrl, isPrecise } from "@/lib/geo";
-import type { Metadata } from "next";
 
 const GENDER_LABEL = { male: "Male only", female: "Female only", mixed: "Mixed" } as const;
 
@@ -34,6 +38,7 @@ export default async function PropertyPage({
   const sp = await searchParams;
 
   const supabase = await createClient();
+
   const { data: property } = await supabase
     .from("properties")
     .select(`
@@ -46,6 +51,26 @@ export default async function PropertyPage({
     .maybeSingle();
 
   if (!property) notFound();
+
+  const { data: { user } } = await supabase.auth.getUser();
+
+  const { data: bookmark } = user
+    ? await supabase
+        .from("bookmarks")
+        .select("property_id")
+        .eq("student_id", user.id)
+        .eq("property_id", id)
+        .maybeSingle()
+    : { data: null };
+
+  const { data: reviews } = await supabase
+    .from("reviews")
+    .select("id, rating, comment, created_at, student_id, profiles(display_name)")
+    .eq("property_id", id)
+    .order("created_at", { ascending: false });
+
+  const myReview = user ? reviews?.find((r) => r.student_id === user.id) ?? null : null;
+  const isOwner = user?.id === property.owner_id;
 
   const showTri = property.property_schools.some((ps) => ps.schools?.has_tri_semester);
   const periods = showTri ? PERIODS : PERIODS.filter((p) => p.key !== "tri_semester");
@@ -76,6 +101,7 @@ export default async function PropertyPage({
   );
 
   const publicBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/room-photos`;
+
   const directionsHref =
     isPrecise(property.location_accuracy_m) && property.lat !== null && property.lng !== null
       ? directionsUrl({ lat: property.lat, lng: property.lng })
@@ -99,9 +125,14 @@ export default async function PropertyPage({
 
         <div className="mt-6 grid gap-10 lg:grid-cols-[1fr_20rem]">
           <div>
-            <h1 className="text-[2rem] font-extrabold leading-tight tracking-tight text-ink">
-              {property.name}
-            </h1>
+            <div className="flex items-start justify-between gap-4">
+              <h1 className="text-[2rem] font-extrabold leading-tight tracking-tight text-ink">
+                {property.name}
+              </h1>
+              <div className="shrink-0 pt-1">
+                <BookmarkButton propertyId={property.id} saved={bookmark !== null} size="lg" />
+              </div>
+            </div>
 
             <p className="mt-2 flex flex-wrap items-center gap-x-2 gap-y-1 text-[15px] text-muted">
               <MapPin size={15} />
@@ -110,6 +141,16 @@ export default async function PropertyPage({
                 {GENDER_LABEL[property.gender_pref]}
               </span>
             </p>
+
+            {property.review_count > 0 ? (
+              <p className="mt-3 flex items-center gap-2">
+                <Stars value={property.avg_rating ?? 0} size={16} />
+                <span className="text-sm font-semibold text-ink">{property.avg_rating}</span>
+                <span className="text-sm text-muted">
+                  ({property.review_count} {property.review_count === 1 ? "review" : "reviews"})
+                </span>
+              </p>
+            ) : null}
 
             <ul className="mt-4 flex flex-wrap gap-2">
               {property.property_schools.map((ps, i) => (
@@ -124,17 +165,17 @@ export default async function PropertyPage({
               ))}
             </ul>
 
-            {property.distance_note && (
-              <p className="mt-3 text-[15px] italic text-muted">&ldquo;{property.distance_note}&rdquo;</p>
-            )}
+            {property.distance_note ? (
+              <p className="mt-3 text-[15px] italic text-muted">{property.distance_note}</p>
+            ) : null}
 
-            {property.description && (
+            {property.description ? (
               <p className="mt-6 whitespace-pre-line text-[15px] leading-relaxed text-ink">
                 {property.description}
               </p>
-            )}
+            ) : null}
 
-            {facilities.length > 0 && (
+            {facilities.length > 0 ? (
               <section className="mt-8">
                 <h2 className="text-xl font-bold text-ink">What this place has</h2>
                 <ul className="mt-4 grid grid-cols-2 gap-3 sm:grid-cols-3">
@@ -146,11 +187,11 @@ export default async function PropertyPage({
                   ))}
                 </ul>
               </section>
-            )}
+            ) : null}
 
             <section className="mt-10">
               <div className="flex flex-wrap items-center justify-between gap-3">
-                <h2 className="text-xl font-bold text-ink">Rooms &amp; prices</h2>
+                <h2 className="text-xl font-bold text-ink">Rooms and prices</h2>
 
                 <div className="flex gap-1 rounded-2xl bg-surface p-1">
                   {periods.map((p) => (
@@ -170,7 +211,7 @@ export default async function PropertyPage({
 
               {rooms.length === 0 ? (
                 <p className="mt-4 rounded-2xl border border-dashed border-line bg-surface p-6 text-center text-sm text-muted">
-                  This lister hasn't added rooms yet.
+                  This lister has not added rooms yet.
                 </p>
               ) : (
                 <ul className="mt-4 space-y-4">
@@ -179,6 +220,34 @@ export default async function PropertyPage({
                   ))}
                 </ul>
               )}
+            </section>
+
+            <section className="mt-12">
+              <h2 className="text-xl font-bold text-ink">
+                Reviews {property.review_count > 0 ? `(${property.review_count})` : ""}
+              </h2>
+
+              {!isOwner ? (
+                <div className="mt-4">
+                  {user ? (
+                    <ReviewForm propertyId={property.id} existing={myReview} />
+                  ) : (
+                    <div className="rounded-card border border-dashed border-line bg-surface p-6 text-center">
+                      <p className="text-sm text-muted">Log in to leave a review.</p>
+                      <Link
+                        href="/login"
+                        className="mt-4 inline-flex h-11 items-center rounded-2xl bg-brand-ink px-5 text-sm font-semibold text-white transition hover:brightness-110"
+                      >
+                        Log in
+                      </Link>
+                    </div>
+                  )}
+                </div>
+              ) : null}
+
+              <div className="mt-6">
+                <ReviewList reviews={(reviews ?? []).filter((r) => r.id !== myReview?.id)} />
+              </div>
             </section>
           </div>
 
