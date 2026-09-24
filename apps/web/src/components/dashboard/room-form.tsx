@@ -9,6 +9,7 @@ import { AmenityRow, type AmenityValue } from "./amenity-row";
 import { AMENITIES, PERIODS, type Amenity } from "@/lib/pricing";
 import { easePremium } from "@/lib/motion";
 import type { Database } from "@/lib/database.types";
+import { PriceInputs } from "@/components/ui/price-inputs";
 
 type Room = Database["public"]["Tables"]["room_types"]["Row"];
 
@@ -55,28 +56,19 @@ export function RoomForm({
       />
 
       <fieldset>
-        <legend className="mb-1 text-sm font-semibold text-ink">Price per bed space</legend>
-        <p className="mb-3 text-xs text-muted">
-          What one student pays. Leave a period blank if you don't offer it.
-        </p>
-        <div className="grid gap-4 sm:grid-cols-3">
-          {periods.map((p) => (
-            <label key={p.key} className="block">
-              <span className="mb-1.5 block text-sm font-medium text-muted">{p.label}</span>
-              <div className="relative">
-                <span className="pointer-events-none absolute left-4 top-1/2 -translate-y-1/2 text-ink">₦</span>
-                <input
-                  type="text"
-                  inputMode="numeric"
-                  name={p.column}
-                  defaultValue={room?.[p.column] ?? ""}
-                  placeholder="185,000"
-                  className="h-14 w-full rounded-2xl border border-line bg-surface pl-9 pr-4 text-[16px] text-ink outline-none transition placeholder:text-muted/60 focus:border-brand-deep focus:bg-white focus:ring-4 focus:ring-brand/50"
-                />
-              </div>
-            </label>
-          ))}
-        </div>
+       <legend className="mb-1 text-sm font-semibold text-ink">Price per bed space</legend>
+       <p className="mb-3 text-xs text-muted">
+       What one student pays. Session autofills to double the semester price - change it if you discount.
+       </p>
+       <PriceInputs
+        prefix="price"
+        periods={periods.map((p) => ({ key: p.key, label: p.label }))}
+        initial={{
+        semester: room?.price_semester ?? null,
+        session: room?.price_session ?? null,
+        tri_semester: room?.price_tri_semester ?? null,
+        }}
+        />
       </fieldset>
 
       <fieldset>
