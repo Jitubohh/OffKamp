@@ -24,19 +24,26 @@ export async function signup(_prev: AuthState, formData: FormData): Promise<Auth
   if (error) return { error: error.message };
 
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(role === "lister" ? "/dashboard/property" : "/");
 }
 
 export async function login(_prev: AuthState, formData: FormData): Promise<AuthState> {
   const supabase = await createClient();
-  const { error } = await supabase.auth.signInWithPassword({
+
+  const { data, error } = await supabase.auth.signInWithPassword({
     email: String(formData.get("email") ?? "").trim(),
     password: String(formData.get("password") ?? ""),
   });
   if (error) return { error: "Wrong email or password." };
 
+  const { data: profile } = await supabase
+    .from("profiles")
+    .select("role")
+    .eq("id", data.user.id)
+    .single();
+
   revalidatePath("/", "layout");
-  redirect("/");
+  redirect(profile?.role === "lister" ? "/dashboard" : "/");
 }
 
 export async function logout() {

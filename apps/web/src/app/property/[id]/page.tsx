@@ -256,6 +256,8 @@ export default async function PropertyPage({
               name={property.name}
               whatsapp={property.contact_whatsapp}
               phone={property.contact_phone}
+              instagram={property.instagram}
+              tiktok={property.tiktok}
               directionsHref={directionsHref}
             />
           </aside>

@@ -1,17 +1,21 @@
 "use client";
 
-import { MessageCircle, Phone, Navigation } from "lucide-react";
+import { MessageCircle, Phone, Navigation, Camera, Music2, CameraOff } from "lucide-react";
+import { instagramUrl, tiktokUrl } from "@/lib/socials";
 
 type Props = {
   name: string;
   whatsapp: string;
   phone: string | null;
+  instagram: string | null;
+  tiktok: string | null;
   directionsHref: string | null;
 };
 
 const BTN = "flex h-14 w-full items-center justify-center gap-2 rounded-2xl text-[15px] font-semibold transition";
 const BTN_WA = BTN + " bg-[#25D366] text-white hover:brightness-105";
 const BTN_OUTLINE = BTN + " border border-line text-ink hover:bg-surface";
+const SOCIAL = "flex h-12 flex-1 items-center justify-center gap-2 rounded-xl border border-line text-sm font-semibold text-ink transition hover:border-brand-deep hover:bg-brand/10";
 
 function toWaNumber(raw: string): string {
   const digits = raw.replace(/\D/g, "");
@@ -24,10 +28,11 @@ function ExternalLink(props: { href: string; className: string; children: React.
   return <a href={props.href} target="_blank" rel="noopener noreferrer" className={props.className}>{props.children}</a>;
 }
 
-export function ContactPanel({ name, whatsapp, phone, directionsHref }: Props) {
+export function ContactPanel({ name, whatsapp, phone, instagram, tiktok, directionsHref }: Props) {
   const message = encodeURIComponent("Hi, I saw " + name + " on OffKamp and I would like to ask about a room.");
   const waHref = "https://wa.me/" + toWaNumber(whatsapp) + "?text=" + message;
   const telHref = "tel:" + (phone ?? whatsapp);
+  const hasSocials = instagram !== null || tiktok !== null;
 
   return (
     <div className="rounded-card border border-line p-5">
@@ -54,6 +59,26 @@ export function ContactPanel({ name, whatsapp, phone, directionsHref }: Props) {
           </ExternalLink>
         ) : null}
       </div>
+
+      {hasSocials ? (
+        <div className="mt-4 border-t border-line pt-4">
+          <p className="mb-2.5 text-xs font-semibold text-muted">See more of this place</p>
+          <div className="flex gap-2.5">
+            {instagram ? (
+              <ExternalLink href={instagramUrl(instagram)} className={SOCIAL}>
+                <Camera size={16} />
+                Instagram
+              </ExternalLink>
+            ) : null}
+            {tiktok ? (
+              <ExternalLink href={tiktokUrl(tiktok)} className={SOCIAL}>
+                <Music2 size={16} />
+                TikTok
+              </ExternalLink>
+            ) : null}
+          </div>
+        </div>
+      ) : null}
     </div>
   );
 }

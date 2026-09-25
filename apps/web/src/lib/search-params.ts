@@ -35,7 +35,7 @@ export function parseFilters(sp: Record<string, string | string[] | undefined>):
   const gender = one("gender");
 
   return {
-    school: one("school") === "baze" ? "baze" : "nile",
+    school: one("school") ?? "nile",
     minPrice: num("min"),
     maxPrice: num("max"),
     capacities: many("cap").map(Number).filter((n) => n >= 1 && n <= 6),

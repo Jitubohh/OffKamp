@@ -5,13 +5,16 @@ import { redirect } from "next/navigation";
 import { createClient } from "@/lib/supabase/server";
 import { haversineKm } from "@/lib/geo";
 import { FACILITY_VALUES, type Facility } from "@/lib/facilities";
+import { normalizeHandle } from "@/lib/socials";
 
 export type FormState = { error?: string };
 
 const GENDERS = ["male", "female", "mixed"] as const;
 type Gender = (typeof GENDERS)[number];
 
-/** "" -> null, otherwise a finite number, otherwise undefined (= invalid) */
+const PHONE_RE = /^\+?[0-9\s-]{7,20}$/;
+
+/** "" -> null, a finite number, or undefined when unparseable */
 function numOrNull(raw: FormDataEntryValue | null): number | null | undefined {
   const s = String(raw ?? "").trim();
   if (s === "") return null;
@@ -30,7 +33,9 @@ export async function saveProperty(_prev: FormState, formData: FormData): Promis
   const whatsapp = String(formData.get("contact_whatsapp") ?? "").trim();
   const phone = String(formData.get("contact_phone") ?? "").trim();
 
-  // getAll: one value per checked school checkbox
+  const rawInstagram = String(formData.get("instagram") ?? "").trim();
+  const rawTiktok = String(formData.get("tiktok") ?? "").trim();
+
   const schoolIds = formData.getAll("school_ids").map(String).filter(Boolean);
   const facilities = formData.getAll("facilities").map(String).filter(Boolean);
 
@@ -41,15 +46,24 @@ export async function saveProperty(_prev: FormState, formData: FormData): Promis
   if (!name || !location) return { error: "Fill in every required field." };
   if (schoolIds.length === 0) return { error: "Pick at least one school." };
   if (!GENDERS.includes(rawGender as Gender)) return { error: "Pick a gender preference." };
-  const PHONE_RE = /^\+?[0-9\s-]{7,20}$/;
   if (!PHONE_RE.test(whatsapp)) return { error: "Enter a valid WhatsApp number." };
   if (phone && !PHONE_RE.test(phone)) return { error: "That call-only number doesn't look right." };
-  if (lat === undefined || lng === undefined) return { error: "That location didn't look right. Drop the pin again." };
-  if ((lat === null) !== (lng === null)) return { error: "Location is incomplete. Drop the pin again." };
+  if (lat === undefined || lng === undefined)
+    return { error: "That location didn't look right. Drop the pin again." };
+  if ((lat === null) !== (lng === null))
+    return { error: "Location is incomplete. Drop the pin again." };
+
+  const instagram = rawInstagram === "" ? null : normalizeHandle(rawInstagram);
+  const tiktok = rawTiktok === "" ? null : normalizeHandle(rawTiktok);
+
+  if (rawInstagram !== "" && instagram === null)
+    return { error: "That Instagram handle doesn't look right." };
+  if (rawTiktok !== "" && tiktok === null)
+    return { error: "That TikTok handle doesn't look right." };
 
   const hasPin = lat !== null && lng !== null;
 
-  // ---- 1. upsert the property, get its id back --------------------
+  // ---- 1. the property ---------------------------------------------
   const { data: property, error: propError } = await supabase
     .from("properties")
     .upsert(
@@ -63,6 +77,8 @@ export async function saveProperty(_prev: FormState, formData: FormData): Promis
         gender_pref: rawGender as Gender,
         contact_whatsapp: whatsapp,
         contact_phone: phone || null,
+        instagram,
+        tiktok,
         lat,
         lng,
         location_accuracy_m: accuracy ?? null,
@@ -75,7 +91,7 @@ export async function saveProperty(_prev: FormState, formData: FormData): Promis
 
   if (propError || !property) return { error: propError?.message ?? "Couldn't save your property." };
 
-  // ---- 2. distances to each selected school -----------------------
+  // ---- 2. distance to each selected school --------------------------
   const { data: schools } = await supabase
     .from("schools")
     .select("id, lat, lng")
@@ -90,7 +106,6 @@ export async function saveProperty(_prev: FormState, formData: FormData): Promis
         : null,
   }));
 
-  // ---- 3. replace the join rows -----------------------------------
   const { error: delError } = await supabase
     .from("property_schools")
     .delete()
@@ -103,7 +118,7 @@ export async function saveProperty(_prev: FormState, formData: FormData): Promis
     .upsert(rows, { onConflict: "property_id,school_id" });
   if (linkError) return { error: linkError.message };
 
-  // ---- 4. replace facility rows -----------------------------------
+  // ---- 3. facilities ------------------------------------------------
   const validFacilities = facilities.filter((f) =>
     (FACILITY_VALUES as string[]).includes(f)
   ) as Facility[];

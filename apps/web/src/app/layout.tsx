@@ -9,8 +9,8 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "OffKamp — Off-campus housing for Nile & Baze",
-  description: "Find off-campus accommodation near Nile University and Baze University, Abuja.",
+  title: "OffKamp — Off-campus housing in Abuja",
+  description: "Find off-campus accommodation near your campus in Abuja. Compare rooms, prices and facilities, then contact the lister directly.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {

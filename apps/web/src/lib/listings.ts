@@ -4,8 +4,10 @@ import type { Filters } from "@/lib/search-params";
 export async function fetchListings(filters: Filters) {
   const supabase = await createClient();
 
-  const { data: school } = await supabase
-    .from("schools").select("id, name, has_tri_semester").eq("slug", filters.school).single();
+    const { data: school } = await supabase
+    .from("schools").select("id, name, has_tri_semester")
+    .eq("slug", filters.school).eq("active", true).single();
+
   if (!school) return { school: null, listings: [] };
 
   let query = supabase

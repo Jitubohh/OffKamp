@@ -79,6 +79,7 @@ export type Database = {
           distance_note: string | null
           gender_pref: Database["public"]["Enums"]["gender_pref"]
           id: string
+          instagram: string | null
           lat: number | null
           lng: number | null
           location: string
@@ -87,6 +88,7 @@ export type Database = {
           name: string
           owner_id: string | null
           review_count: number
+          tiktok: string | null
           updated_at: string
         }
         Insert: {
@@ -99,6 +101,7 @@ export type Database = {
           distance_note?: string | null
           gender_pref: Database["public"]["Enums"]["gender_pref"]
           id?: string
+          instagram?: string | null
           lat?: number | null
           lng?: number | null
           location: string
@@ -107,6 +110,7 @@ export type Database = {
           name: string
           owner_id?: string | null
           review_count?: number
+          tiktok?: string | null
           updated_at?: string
         }
         Update: {
@@ -119,6 +123,7 @@ export type Database = {
           distance_note?: string | null
           gender_pref?: Database["public"]["Enums"]["gender_pref"]
           id?: string
+          instagram?: string | null
           lat?: number | null
           lng?: number | null
           location?: string
@@ -127,6 +132,7 @@ export type Database = {
           name?: string
           owner_id?: string | null
           review_count?: number
+          tiktok?: string | null
           updated_at?: string
         }
         Relationships: [
@@ -362,6 +368,7 @@ export type Database = {
       }
       schools: {
         Row: {
+          active: boolean
           created_at: string
           has_tri_semester: boolean
           id: string
@@ -371,6 +378,7 @@ export type Database = {
           slug: string
         }
         Insert: {
+          active?: boolean
           created_at?: string
           has_tri_semester?: boolean
           id?: string
@@ -380,6 +388,7 @@ export type Database = {
           slug: string
         }
         Update: {
+          active?: boolean
           created_at?: string
           has_tri_semester?: boolean
           id?: string
