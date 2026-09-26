@@ -1,153 +1,132 @@
 import Link from "next/link";
-import { redirect } from "next/navigation";
-import { MapPin, Pencil, AlertTriangle, Plus } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
-import { isPrecise } from "@/lib/geo";
-import { formatNaira } from "@/lib/pricing";
+import { parseFilters, buildQuery } from "@/lib/search-params";
+import { fetchListings } from "@/lib/listings";
+import { ListingCard } from "@/components/browse/listing-card";
+import { FilterSheet } from "@/components/browse/filter-sheet";
+import { SchoolPicker } from "@/components/browse/school-picker";
+import { PendingLink } from "@/components/ui/pending-link";
+import { SiteHeader } from "@/components/nav/site-header";
+import { BottomTabs } from "@/components/nav/bottom-tabs";
 
-export default async function DashboardPage() {
+export default async function BrowsePage({
+  searchParams,
+}: {
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
+}) {
+  const sp = await searchParams;
+  const filters = parseFilters(sp);
+
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
-  if (!user) redirect("/login");
 
-  const { data: profile } = await supabase
-    .from("profiles").select("role, display_name").eq("id", user.id).single();
-  if (profile?.role !== "lister") redirect("/");
+  const [{ data: profile }, { data: bookmarks }, { data: activeSchools }, listingResult] =
+    await Promise.all([
+      user
+        ? supabase.from("profiles").select("role").eq("id", user.id).single()
+        : Promise.resolve({ data: null }),
+      user
+        ? supabase.from("bookmarks").select("property_id").eq("student_id", user.id)
+        : Promise.resolve({ data: null }),
+      supabase.from("schools").select("slug, name").eq("active", true).order("name"),
+      fetchListings(filters),
+    ]);
 
-  const { data: property } = await supabase
-    .from("properties")
-    .select("*, property_schools(distance_km, schools(name)), room_types(*, room_photos(id))")
-    .eq("owner_id", user.id)
-    .maybeSingle();
+  const { school, listings } = listingResult;
 
-  const needsLocation = property !== null && property.lat === null;
+  const savedIds = new Set(bookmarks?.map((b) => b.property_id) ?? []);
+  const publicBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/room-photos`;
+  const role = profile?.role ?? null;
+
+  const sortHref = (sort: typeof filters.sort) => `/?${buildQuery({ ...filters, sort })}`;
 
   return (
-    <main className="mx-auto w-full max-w-3xl px-5 pb-24 pt-8 sm:px-8">
-      <h1 className="text-[2rem] font-extrabold leading-tight tracking-tight text-ink">
-        {profile.display_name ? `Hi, ${profile.display_name.split(" ")[0]}` : "Your dashboard"}
-      </h1>
-
-      {!property ? (
-        <div className="mt-8 rounded-card border border-dashed border-line bg-surface p-8 text-center">
-          <p className="text-[15px] text-muted">You haven&rsquo;t listed a property yet.</p>
-          <Link
-            href="/dashboard/property"
-            className="mt-5 inline-flex h-12 items-center gap-2 rounded-2xl bg-brand-ink px-6 text-[15px] font-semibold text-white transition hover:brightness-110"
-          >
-            <Plus size={18} /> List your property
-          </Link>
+    <div className="min-h-dvh bg-white pb-20 sm:pb-0">
+      <SiteHeader role={role} signedIn={!!user}>
+        <div className="flex justify-end sm:justify-start">
+          <SchoolPicker
+            schools={activeSchools ?? []}
+            current={filters.school}
+            baseQuery={buildQuery(filters)}
+          />
         </div>
-      ) : (
-        <>
-          {needsLocation && (
-            <div className="mt-6 flex items-start gap-3 rounded-2xl border border-amber-200 bg-amber-50 p-4">
-              <AlertTriangle size={20} className="mt-0.5 shrink-0 text-amber-600" />
-              <div>
-                <p className="text-sm font-semibold text-amber-900">
-                  Add your location to appear in distance searches
-                </p>
-                <p className="mt-1 text-sm text-amber-700">
-                  Students filter by how far a place is from campus. Without a pin, yours stays hidden from those results.
-                </p>
+      </SiteHeader>
+
+      <main className="mx-auto max-w-6xl px-5 pb-16 pt-8 sm:px-8">
+        {!school ? (
+          <div className="mt-12 rounded-card border border-dashed border-line bg-surface p-12 text-center">
+            <p className="font-semibold text-ink">No listings for that school yet.</p>
+            <p className="mt-1 text-sm text-muted">
+              Once a lister nearby signs up, places will show here.
+            </p>
+            <Link
+              href="/"
+              className="mt-5 inline-flex h-11 items-center rounded-2xl bg-brand-ink px-5 text-sm font-semibold text-white transition hover:brightness-110"
+            >
+              Back to browse
+            </Link>
+          </div>
+        ) : (
+          <>
+            <h1 className="text-[1.75rem] font-extrabold leading-tight tracking-tight text-ink sm:text-[2rem]">
+              Off-campus places near {school.name.split(" ")[0]}
+            </h1>
+            <p className="mt-2 text-[15px] text-muted">
+              {listings.length} {listings.length === 1 ? "place" : "places"} to look at.
+            </p>
+
+            <div className="mt-6 flex flex-wrap items-center gap-3">
+              <FilterSheet filters={filters} resultCount={listings.length} />
+
+              <div className="flex gap-1 rounded-2xl bg-surface p-1">
+                {([
+                  ["distance", "Closest"],
+                  ["price_asc", "Cheapest"],
+                  ["price_desc", "Priciest"],
+                ] as const).map(([value, label]) => (
+                  <PendingLink
+                    key={value}
+                    href={sortHref(value)}
+                    className={`rounded-xl px-3.5 py-2 text-sm font-semibold transition ${
+                      filters.sort === value ? "bg-white text-brand-ink shadow-sm" : "text-muted hover:text-ink"
+                    }`}
+                  >
+                    {label}
+                  </PendingLink>
+                ))}
+              </div>
+            </div>
+
+            {listings.length === 0 ? (
+              <div className="mt-12 rounded-card border border-dashed border-line bg-surface p-12 text-center">
+                <p className="font-semibold text-ink">Nothing matches those filters.</p>
+                <p className="mt-1 text-sm text-muted">Try widening your price range or distance.</p>
                 <Link
-                  href="/dashboard/property"
-                  className="mt-3 inline-flex h-10 items-center rounded-xl bg-amber-600 px-4 text-sm font-semibold text-white transition hover:brightness-110"
+                  href="/"
+                  className="mt-5 inline-flex h-11 items-center rounded-2xl bg-brand-ink px-5 text-sm font-semibold text-white transition hover:brightness-110"
                 >
-                  Set location
+                  Clear filters
                 </Link>
               </div>
-            </div>
-          )}
-
-          <section className="mt-6 rounded-card border border-line p-6">
-            <div className="flex items-start justify-between gap-4">
-              <div>
-                <h2 className="text-xl font-bold text-ink">{property.name}</h2>
-                <p className="mt-1 text-sm text-muted">{property.location}</p>
-              </div>
-              <Link
-                href="/dashboard/property"
-                className="inline-flex h-10 shrink-0 items-center gap-1.5 rounded-xl border border-line px-4 text-sm font-semibold text-ink transition hover:bg-surface"
-              >
-                <Pencil size={15} /> Edit
-              </Link>
-            </div>
-
-            <ul className="mt-4 space-y-1.5">
-              {property.property_schools.map((ps, i) => (
-                <li key={i} className="flex items-center gap-2 text-sm text-ink">
-                  <MapPin size={14} className="text-brand-ink" />
-                  {ps.distance_km !== null
-                    ? `${ps.distance_km} km from ${ps.schools?.name}`
-                    : `Serves ${ps.schools?.name}`}
-                </li>
-              ))}
-            </ul>
-
-            {property.distance_note && (
-              <p className="mt-3 text-sm italic text-muted">&ldquo;{property.distance_note}&rdquo;</p>
-            )}
-
-            {isPrecise(property.location_accuracy_m) && (
-              <p className="mt-3 inline-flex rounded-full bg-green-50 px-3 py-1 text-xs font-semibold text-green-700">
-                Precise location · directions enabled
-              </p>
-            )}
-          </section>
-
-          <section className="mt-8">
-            <div className="flex items-center justify-between">
-              <h2 className="text-xl font-bold text-ink">Rooms</h2>
-              <Link
-                href="/dashboard/rooms/new"
-                className="inline-flex h-10 items-center gap-1.5 rounded-xl bg-brand-ink px-4 text-sm font-semibold text-white transition hover:brightness-110"
-              >
-                <Plus size={16} /> Add room
-              </Link>
-            </div>
-
-            {property.room_types.length === 0 ? (
-              <p className="mt-4 rounded-2xl border border-dashed border-line bg-surface p-6 text-center text-sm text-muted">
-                No rooms yet. Students can&rsquo;t see prices until you add one.
-              </p>
             ) : (
-              <ul className="mt-4 space-y-3">
-                {property.room_types.map((r) => (
-                  <li key={r.id}>
-                    <Link
-                      href={`/dashboard/rooms/${r.id}`}
-                      className="flex items-center justify-between gap-4 rounded-2xl border border-line p-4 transition hover:border-brand-deep hover:bg-brand/10"
-                    >
-                      <div className="min-w-0">
-                        <p className="font-semibold text-ink">
-                          {r.capacity === 1 ? "Single room" : `Room of ${r.capacity}`}
-                          {r.label && <span className="font-normal text-muted"> · {r.label}</span>}
-                        </p>
-                        <p className="mt-0.5 truncate text-sm text-muted">
-                          {[
-                            r.price_semester && `${formatNaira(r.price_semester)}/semester`,
-                            r.price_session && `${formatNaira(r.price_session)}/session`,
-                            r.price_tri_semester && `${formatNaira(r.price_tri_semester)}/tri`,
-                          ].filter(Boolean).join(" · ")}
-                        </p>
-                        {r.room_photos.length === 0 && (
-                          <p className="mt-1 text-xs font-medium text-amber-600">No photos yet</p>
-                        )}
-                      </div>
-                      <span className={`shrink-0 rounded-full px-3 py-1 text-xs font-semibold ${
-                        r.availability === "available" ? "bg-green-50 text-green-700" : "bg-surface text-muted"
-                      }`}>
-                        {r.availability === "available" ? "Available" : "Full"}
-                      </span>
-                    </Link>
+              <ul className="mt-8 grid gap-x-6 gap-y-9 sm:grid-cols-2 lg:grid-cols-3">
+                {listings.map((l) => (
+                  <li key={l.id}>
+                    <ListingCard
+                      listing={l}
+                      publicBase={publicBase}
+                      schoolName={school.name}
+                      saved={savedIds.has(l.id)}
+                    />
                   </li>
                 ))}
               </ul>
             )}
-          </section>
-        </>
-      )}
-    </main>
+          </>
+        )}
+      </main>
+
+      <BottomTabs role={role} signedIn={!!user} />
+    </div>
   );
 }

@@ -1,6 +1,6 @@
 import Link from "next/link";
 import { notFound } from "next/navigation";
-import { MapPin, ArrowLeft } from "lucide-react";
+import { MapPin } from "lucide-react";
 import type { Metadata } from "next";
 import { createClient } from "@/lib/supabase/server";
 import { Gallery } from "@/components/property/gallery";
@@ -8,6 +8,9 @@ import { RoomCard, type RoomForDisplay } from "@/components/property/room-card";
 import { ContactPanel } from "@/components/property/contact-panel";
 import { BookmarkButton } from "@/components/browse/bookmark-button";
 import { PendingLink } from "@/components/ui/pending-link";
+import { BackLink } from "@/components/ui/back-link";
+import { SiteHeader } from "@/components/nav/site-header";
+import { BottomTabs } from "@/components/nav/bottom-tabs";
 import { Stars } from "@/components/reviews/stars";
 import { ReviewForm } from "@/components/reviews/review-form";
 import { ReviewList } from "@/components/reviews/review-list";
@@ -55,7 +58,10 @@ export default async function PropertyPage({
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  const [{ data: bookmark }, { data: reviews }] = await Promise.all([
+  const [{ data: profile }, { data: bookmark }, { data: reviews }] = await Promise.all([
+    user
+      ? supabase.from("profiles").select("role").eq("id", user.id).single()
+      : Promise.resolve({ data: null }),
     user
       ? supabase
           .from("bookmarks")
@@ -71,6 +77,7 @@ export default async function PropertyPage({
       .order("created_at", { ascending: false }),
   ]);
 
+  const role = profile?.role ?? null;
   const myReview = user ? reviews?.find((r) => r.student_id === user.id) ?? null : null;
   const isOwner = user?.id === property.owner_id;
 
@@ -110,25 +117,20 @@ export default async function PropertyPage({
       : null;
 
   return (
-    <div className="min-h-dvh bg-white">
-      <header className="sticky top-0 z-30 border-b border-line bg-white/85 backdrop-blur">
-        <div className="mx-auto flex max-w-5xl items-center gap-3 px-5 py-4 sm:px-8">
-          <Link
-            href="/"
-            className="-ml-2 inline-flex h-10 items-center gap-1.5 rounded-xl px-2 text-sm font-semibold text-muted transition hover:bg-surface hover:text-ink"
-          >
-            <ArrowLeft size={18} /> All places
-          </Link>
-        </div>
-      </header>
+    <div className="min-h-dvh bg-white pb-20 sm:pb-0">
+      <SiteHeader role={role} signedIn={!!user} />
 
-      <main className="mx-auto max-w-5xl px-5 pb-24 pt-6 sm:px-8">
-        <Gallery photos={photos} publicBase={publicBase} name={property.name} />
+      <main className="mx-auto max-w-5xl px-5 pb-16 pt-5 sm:px-8">
+        <BackLink href="/" label="All places" />
+
+        <div className="mt-4">
+          <Gallery photos={photos} publicBase={publicBase} name={property.name} />
+        </div>
 
         <div className="mt-6 grid gap-10 lg:grid-cols-[1fr_20rem]">
           <div>
             <div className="flex items-start justify-between gap-4">
-              <h1 className="text-[2rem] font-extrabold leading-tight tracking-tight text-ink">
+              <h1 className="text-[1.75rem] font-extrabold leading-tight tracking-tight text-ink sm:text-[2rem]">
                 {property.name}
               </h1>
               <div className="shrink-0 pt-1">
@@ -252,7 +254,7 @@ export default async function PropertyPage({
             </section>
           </div>
 
-          <aside className="lg:sticky lg:top-28 lg:self-start">
+          <aside className="lg:sticky lg:top-24 lg:self-start">
             <ContactPanel
               name={property.name}
               whatsapp={property.contact_whatsapp}
@@ -264,6 +266,8 @@ export default async function PropertyPage({
           </aside>
         </div>
       </main>
+
+      <BottomTabs role={role} signedIn={!!user} />
     </div>
   );
 }
