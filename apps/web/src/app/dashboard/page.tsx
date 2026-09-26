@@ -115,7 +115,6 @@ export default async function BrowsePage({
                     <ListingCard
                       listing={l}
                       publicBase={publicBase}
-                      schoolName={school.name}
                       saved={savedIds.has(l.id)}
                     />
                   </li>
