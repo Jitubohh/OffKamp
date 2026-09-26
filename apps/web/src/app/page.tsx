@@ -1,5 +1,4 @@
 import Link from "next/link";
-import { Heart } from "lucide-react";
 import { createClient } from "@/lib/supabase/server";
 import { parseFilters, buildQuery } from "@/lib/search-params";
 import { fetchListings } from "@/lib/listings";
@@ -7,8 +6,8 @@ import { ListingCard } from "@/components/browse/listing-card";
 import { FilterSheet } from "@/components/browse/filter-sheet";
 import { SchoolPicker } from "@/components/browse/school-picker";
 import { PendingLink } from "@/components/ui/pending-link";
-import { Logo } from "@/components/brand/logo";
-import { logout } from "@/app/(auth)/actions";
+import { SiteHeader } from "@/components/nav/site-header";
+import { BottomTabs } from "@/components/nav/bottom-tabs";
 
 export default async function BrowsePage({
   searchParams,
@@ -37,70 +36,23 @@ export default async function BrowsePage({
 
   const savedIds = new Set(bookmarks?.map((b) => b.property_id) ?? []);
   const publicBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/room-photos`;
+  const role = profile?.role ?? null;
 
   const sortHref = (sort: typeof filters.sort) => `/?${buildQuery({ ...filters, sort })}`;
 
   return (
-    <div className="min-h-dvh bg-white">
-      <header className="sticky top-0 z-30 border-b border-line bg-white/85 backdrop-blur">
-        <div className="mx-auto flex max-w-6xl items-center justify-between gap-4 px-5 py-4 sm:px-8">
-          <Link href="/"><Logo /></Link>
-
-          <nav className="flex items-center gap-2">
-            {user ? (
-              <>
-                <Link
-                  href="/saved"
-                  className="inline-flex h-10 items-center gap-1.5 rounded-xl px-3 text-sm font-semibold text-muted transition hover:bg-surface hover:text-ink"
-                >
-                  <Heart size={16} />
-                  <span className="hidden sm:inline">Saved</span>
-                </Link>
-
-                {profile?.role === "lister" ? (
-                  <Link
-                    href="/dashboard"
-                    className="inline-flex h-10 items-center rounded-xl px-3 text-sm font-semibold text-muted transition hover:bg-surface hover:text-ink"
-                  >
-                    Dashboard
-                  </Link>
-                ) : null}
-
-                <form action={logout}>
-                  <button className="inline-flex h-10 items-center rounded-xl px-3 text-sm font-semibold text-muted transition hover:bg-surface hover:text-ink">
-                    Log out
-                  </button>
-                </form>
-              </>
-            ) : (
-              <>
-                <Link
-                  href="/login"
-                  className="inline-flex h-10 items-center rounded-xl px-3 text-sm font-semibold text-muted transition hover:bg-surface hover:text-ink"
-                >
-                  Log in
-                </Link>
-                <Link
-                  href="/signup"
-                  className="inline-flex h-10 items-center rounded-xl bg-brand-ink px-4 text-sm font-semibold text-white transition hover:brightness-110"
-                >
-                  Sign up
-                </Link>
-              </>
-            )}
-          </nav>
-        </div>
-
-        <div className="mx-auto max-w-6xl px-5 pb-4 sm:px-8">
+    <div className="min-h-dvh bg-white pb-20 sm:pb-0">
+      <SiteHeader role={role} signedIn={!!user}>
+        <div className="flex justify-end sm:justify-start">
           <SchoolPicker
             schools={activeSchools ?? []}
             current={filters.school}
             baseQuery={buildQuery(filters)}
           />
         </div>
-      </header>
+      </SiteHeader>
 
-      <main className="mx-auto max-w-6xl px-5 pb-24 pt-8 sm:px-8">
+      <main className="mx-auto max-w-6xl px-5 pb-16 pt-8 sm:px-8">
         {!school ? (
           <div className="mt-12 rounded-card border border-dashed border-line bg-surface p-12 text-center">
             <p className="font-semibold text-ink">No listings for that school yet.</p>
@@ -116,7 +68,7 @@ export default async function BrowsePage({
           </div>
         ) : (
           <>
-            <h1 className="text-[2rem] font-extrabold leading-tight tracking-tight text-ink">
+            <h1 className="text-[1.75rem] font-extrabold leading-tight tracking-tight text-ink sm:text-[2rem]">
               Off-campus places near {school.name.split(" ")[0]}
             </h1>
             <p className="mt-2 text-[15px] text-muted">
@@ -173,6 +125,8 @@ export default async function BrowsePage({
           </>
         )}
       </main>
+
+      <BottomTabs role={role} signedIn={!!user} />
     </div>
   );
 }
