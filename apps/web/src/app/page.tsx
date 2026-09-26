@@ -113,11 +113,10 @@ export default async function BrowsePage({
                 {listings.map((l) => (
                   <li key={l.id}>
                     <ListingCard
-                      listing={l}
-                      publicBase={publicBase}
-                      schoolName={school.name}
-                      saved={savedIds.has(l.id)}
-                    />
+  listing={l}
+  publicBase={publicBase}
+  saved={savedIds.has(l.id)}
+/>
                   </li>
                 ))}
               </ul>

@@ -12,11 +12,10 @@ import { BookmarkButton } from "./bookmark-button";
 const GENDER_LABEL = { male: "Male only", female: "Female only", mixed: "Mixed" } as const;
 
 export function ListingCard({
-  listing, publicBase, schoolName, saved = false,
+  listing, publicBase, saved = false,
 }: {
   listing: Listing;
   publicBase: string;
-  schoolName: string;
   saved?: boolean;
 }) {
   const scroller = useRef<HTMLDivElement>(null);
@@ -81,18 +80,10 @@ export function ListingCard({
           <BookmarkButton propertyId={listing.id} saved={saved} />
         </div>
 
-        {photos.length > 1 && (
+        {photos.length > 1 ? (
           <>
-            <Arrow
-              side="left"
-              hidden={index === 0}
-              onClick={() => scrollTo(index - 1)}
-            />
-            <Arrow
-              side="right"
-              hidden={index === photos.length - 1}
-              onClick={() => scrollTo(index + 1)}
-            />
+            <Arrow side="left" hidden={index === 0} onClick={() => scrollTo(index - 1)} />
+            <Arrow side="right" hidden={index === photos.length - 1} onClick={() => scrollTo(index + 1)} />
 
             <div className="pointer-events-none absolute inset-x-0 bottom-3 z-10 flex justify-center gap-1.5">
               {photos.map((_, i) => (
@@ -105,37 +96,34 @@ export function ListingCard({
               ))}
             </div>
           </>
-        )}
+        ) : null}
       </div>
 
       <Link href={href} className="mt-3 block">
         <div className="flex items-start justify-between gap-3">
           <h3 className="font-bold text-ink">{listing.name}</h3>
-          {listing.location !== null && (
+          {listing.distanceKm !== null ? (
             <span className="shrink-0 text-sm font-semibold text-brand-ink">
-              {listing.location} km
+              {listing.distanceKm} km
             </span>
-          )}
+          ) : null}
         </div>
 
         <p className="mt-0.5 flex items-center gap-1 text-sm text-muted">
           <MapPin size={13} className="shrink-0" />
-          {listing.distanceKm}
-          {listing.location !== null && (
-            <span className="text-muted/70"> · from {schoolName.split(" ")[0]}</span>
-          )}
+          {listing.location}
         </p>
 
-        {listing.distanceKm === null && listing.distanceNote && (
+        {listing.distanceKm === null && listing.distanceNote ? (
           <p className="mt-0.5 text-sm italic text-muted">{listing.distanceNote}</p>
-        )}
+        ) : null}
 
         <p className="mt-1.5 flex items-center gap-1 text-sm text-muted">
           <Users size={13} className="shrink-0" />
           {listing.roomCount} room {listing.roomCount === 1 ? "type" : "types"}
         </p>
 
-        {topFacilities.length > 0 && (
+        {topFacilities.length > 0 ? (
           <ul className="mt-2 flex flex-wrap gap-1.5">
             {topFacilities.map(({ value, label, icon: Icon }) => (
               <li
@@ -146,7 +134,7 @@ export function ListingCard({
               </li>
             ))}
           </ul>
-        )}
+        ) : null}
 
         <p className="mt-2 text-ink">
           <span className="text-[17px] font-extrabold">{formatNaira(listing.fromPrice!)}</span>

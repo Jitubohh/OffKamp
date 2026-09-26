@@ -55,11 +55,10 @@ export default async function SavedPage() {
             {saved.map((l) => (
               <li key={l.id}>
                 <ListingCard
-                  listing={l}
-                  publicBase={publicBase}
-                  schoolName={school?.name ?? ""}
-                  saved
-                />
+  listing={l}
+  publicBase={publicBase}
+  saved
+/>
               </li>
             ))}
           </ul>
