@@ -6,6 +6,7 @@ import { fetchListings } from "@/lib/listings";
 import { ListingCard } from "@/components/browse/listing-card";
 import { FilterSheet } from "@/components/browse/filter-sheet";
 import { SchoolPicker } from "@/components/browse/school-picker";
+import { PendingLink } from "@/components/ui/pending-link";
 import { Logo } from "@/components/brand/logo";
 import { logout } from "@/app/(auth)/actions";
 
@@ -20,23 +21,21 @@ export default async function BrowsePage({
   const supabase = await createClient();
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: profile } = user
-    ? await supabase.from("profiles").select("role").eq("id", user.id).single()
-    : { data: null };
+  const [{ data: profile }, { data: bookmarks }, { data: activeSchools }, listingResult] =
+    await Promise.all([
+      user
+        ? supabase.from("profiles").select("role").eq("id", user.id).single()
+        : Promise.resolve({ data: null }),
+      user
+        ? supabase.from("bookmarks").select("property_id").eq("student_id", user.id)
+        : Promise.resolve({ data: null }),
+      supabase.from("schools").select("slug, name").eq("active", true).order("name"),
+      fetchListings(filters),
+    ]);
 
-  const { data: bookmarks } = user
-    ? await supabase.from("bookmarks").select("property_id").eq("student_id", user.id)
-    : { data: null };
+  const { school, listings } = listingResult;
 
-  const savedIds = new Set((bookmarks ?? []).map((b) => b.property_id));
-
-  const { data: activeSchools } = await supabase
-    .from("schools")
-    .select("slug, name")
-    .eq("active", true)
-    .order("name");
-
-  const { school, listings } = await fetchListings(filters);
+  const savedIds = new Set(bookmarks?.map((b) => b.property_id) ?? []);
   const publicBase = `${process.env.NEXT_PUBLIC_SUPABASE_URL}/storage/v1/object/public/room-photos`;
 
   const sortHref = (sort: typeof filters.sort) => `/?${buildQuery({ ...filters, sort })}`;
@@ -133,16 +132,15 @@ export default async function BrowsePage({
                   ["price_asc", "Cheapest"],
                   ["price_desc", "Priciest"],
                 ] as const).map(([value, label]) => (
-                  <Link
+                  <PendingLink
                     key={value}
                     href={sortHref(value)}
-                    scroll={false}
                     className={`rounded-xl px-3.5 py-2 text-sm font-semibold transition ${
                       filters.sort === value ? "bg-white text-brand-ink shadow-sm" : "text-muted hover:text-ink"
                     }`}
                   >
                     {label}
-                  </Link>
+                  </PendingLink>
                 ))}
               </div>
             </div>

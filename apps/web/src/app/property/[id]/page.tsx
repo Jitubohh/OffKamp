@@ -7,6 +7,7 @@ import { Gallery } from "@/components/property/gallery";
 import { RoomCard, type RoomForDisplay } from "@/components/property/room-card";
 import { ContactPanel } from "@/components/property/contact-panel";
 import { BookmarkButton } from "@/components/browse/bookmark-button";
+import { PendingLink } from "@/components/ui/pending-link";
 import { Stars } from "@/components/reviews/stars";
 import { ReviewForm } from "@/components/reviews/review-form";
 import { ReviewList } from "@/components/reviews/review-list";
@@ -54,20 +55,21 @@ export default async function PropertyPage({
 
   const { data: { user } } = await supabase.auth.getUser();
 
-  const { data: bookmark } = user
-    ? await supabase
-        .from("bookmarks")
-        .select("property_id")
-        .eq("student_id", user.id)
-        .eq("property_id", id)
-        .maybeSingle()
-    : { data: null };
-
-  const { data: reviews } = await supabase
-    .from("reviews")
-    .select("id, rating, comment, created_at, student_id, profiles(display_name)")
-    .eq("property_id", id)
-    .order("created_at", { ascending: false });
+  const [{ data: bookmark }, { data: reviews }] = await Promise.all([
+    user
+      ? supabase
+          .from("bookmarks")
+          .select("property_id")
+          .eq("student_id", user.id)
+          .eq("property_id", id)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+    supabase
+      .from("reviews")
+      .select("id, rating, comment, created_at, student_id, profiles(display_name)")
+      .eq("property_id", id)
+      .order("created_at", { ascending: false }),
+  ]);
 
   const myReview = user ? reviews?.find((r) => r.student_id === user.id) ?? null : null;
   const isOwner = user?.id === property.owner_id;
@@ -195,16 +197,15 @@ export default async function PropertyPage({
 
                 <div className="flex gap-1 rounded-2xl bg-surface p-1">
                   {periods.map((p) => (
-                    <Link
+                    <PendingLink
                       key={p.key}
                       href={`/property/${id}?period=${p.key}`}
-                      scroll={false}
                       className={`rounded-xl px-3.5 py-2 text-sm font-semibold transition ${
                         period === p.key ? "bg-white text-brand-ink shadow-sm" : "text-muted hover:text-ink"
                       }`}
                     >
                       {p.label.replace("Per ", "")}
-                    </Link>
+                    </PendingLink>
                   ))}
                 </div>
               </div>

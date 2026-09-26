@@ -1,9 +1,9 @@
 "use client";
 
 import { useState, useRef, useEffect } from "react";
-import Link from "next/link";
 import { motion, AnimatePresence } from "motion/react";
 import { ChevronDown, Check, GraduationCap } from "lucide-react";
+import { PendingLink } from "@/components/ui/pending-link";
 import { easePremium } from "@/lib/motion";
 
 type School = { slug: string; name: string };
@@ -48,16 +48,15 @@ export function SchoolPicker({
         style={{ gridTemplateColumns: `repeat(${schools.length}, minmax(0, 1fr))` }}
       >
         {schools.map((s) => (
-          <Link
+          <PendingLink
             key={s.slug}
             href={hrefFor(s.slug)}
-            scroll={false}
             className={`rounded-xl px-5 py-2 text-center text-sm font-semibold transition ${
               current === s.slug ? "bg-white text-brand-ink shadow-sm" : "text-muted hover:text-ink"
             }`}
           >
             {shortName(s.name)}
-          </Link>
+          </PendingLink>
         ))}
       </div>
     );
@@ -90,10 +89,8 @@ export function SchoolPicker({
             <ul className="max-h-72 overflow-y-auto">
               {schools.map((s) => (
                 <li key={s.slug}>
-                  <Link
+                  <PendingLink
                     href={hrefFor(s.slug)}
-                    scroll={false}
-                    onClick={() => setOpen(false)}
                     className={`flex items-center justify-between gap-2 rounded-xl px-3 py-2.5 text-[15px] transition ${
                       current === s.slug
                         ? "bg-brand/30 font-semibold text-brand-ink"
@@ -102,7 +99,7 @@ export function SchoolPicker({
                   >
                     {s.name}
                     {current === s.slug ? <Check size={16} className="shrink-0" /> : null}
-                  </Link>
+                  </PendingLink>
                 </li>
               ))}
             </ul>
