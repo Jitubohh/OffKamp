@@ -111,17 +111,17 @@ export function ListingCard({
       <Link href={href} className="mt-3 block">
         <div className="flex items-start justify-between gap-3">
           <h3 className="font-bold text-ink">{listing.name}</h3>
-          {listing.distanceKm !== null && (
+          {listing.location !== null && (
             <span className="shrink-0 text-sm font-semibold text-brand-ink">
-              {listing.distanceKm} km
+              {listing.location} km
             </span>
           )}
         </div>
 
         <p className="mt-0.5 flex items-center gap-1 text-sm text-muted">
           <MapPin size={13} className="shrink-0" />
-          {listing.location}
-          {listing.distanceKm !== null && (
+          {listing.distanceKm}
+          {listing.location !== null && (
             <span className="text-muted/70"> · from {schoolName.split(" ")[0]}</span>
           )}
         </p>
